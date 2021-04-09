@@ -2,7 +2,7 @@
 
 This repository stores the scripts and files used to process the 16S rRNA sequencing reads of the La Romaine project. The project is part of the Industrial Research Chair in Carbon Biogeochemistry in Boreal Aquatic systems (CarBBAS Chair) led by Paul A. del Giorgio.
 
-Raw sequences can be found on SRA under the Bioproject number: xxxx.
+Raw sequences can be found on SRA under the Bioproject number: PRJNA693020.
 Intermediate processing files are stored on Zenodo: 10.5281/zenodo.4611421.
 
 Files are being uploaded as manuscripts are published.
