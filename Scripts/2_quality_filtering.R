@@ -87,6 +87,8 @@ any(splitdf$dr_match_name %in% meta$dna.match == F)
 setDT(meta); setDT(splitdf)
 splitdf <- splitdf[meta, , on = c(dr_match_name = "dna.match")]
 
+
+
 # any years don't match?
 splitdf[year != i.year,] # all good
 splitdf[, i.year := NULL] # remove
@@ -117,13 +119,23 @@ splitdf[dr_match_name %in% unique(dupl$dr_match_name) & replicate == 1, splitID 
 splitdf[final_name == "L330R",splitID := "7_Summer_cDNA"]
 splitdf[final_name == "L330D",splitID := "5_Summer_DNA"]
 
+# count number of samples by splitID
+splitdf[, n := .N, by = .(splitID)]
+
+splitdf %>% dplyr::select(splitID, n) %>% distinct()
+# there is one ID with n = 1, merge with other category of same plate
+splitdf[splitID == "6_Summer_DNA", splitID := "6_Spring_DNA"]
+
+
 # pick a random sample for each splitID
 qualcheck <- splitdf %>% group_by(splitID) %>% 
   dplyr::slice(c(1)) %>%
   select(pathFs, pathRs, splitID)
 
+bad<-splitdf[final_name %in% t,]
+
 # qualityPlot
-qc <- plyr::alply(qualcheck[,c("pathFs","pathRs")], .margins = 1, .fun = plotQualityProfile,
+qc <- plyr::alply(bad[,c("pathFs","pathRs")], .margins = 1, .fun = plotQualityProfile,
                   .parallel = TRUE)
 names(qc) <- qualcheck$splitID
 
@@ -141,13 +153,13 @@ trim <- data.frame(splitID = sort(unique(splitdf$splitID)),
                              225,225,225,225,225,
                              225,225,150,160,160,
                              190,150,225,225,225,
-                             225,225,225,225,225,
+                             225,225,225,225,
                              200,225),
                    TrimR = c(225,150,225,150,225,
                              225,225,225,225,225,
                              225,225,150,180,160,
                              190,180,225,225,225,
-                             225,225,225,225,225,
+                             225,225,225,225,
                              225,225), stringsAsFactors = F)
 # old
 #trim <- data.frame(splitID = sort(unique(splitdf$splitID)),
@@ -165,7 +177,7 @@ trim <- data.frame(splitID = sort(unique(splitdf$splitID)),
 #                             180, 180), stringsAsFactors = F)
 splitdf <- left_join(splitdf, trim, by = "splitID")
 saveRDS(splitdf, "./Objects/splitdf_new.rds")
-
+splitdf <-readRDS("./Objects/splitdf_new.rds")
 # create new folders to store data
 dir.create(filtpathF)
 dir.create(filtpathR)
@@ -191,8 +203,9 @@ trimR <- as.list(splitdf$TrimR)
 length(pathFs) == length(trimF)
 
 system.time(mapply(filterAndTrim, fwd = pathFs, filt = filtpathFs, rev = pathRs, filt.rev = filtpathRs,
-                   truncLen = c(trimF,trimR), maxEE = 2, truncQ = 2, maxN = 0, rm.phix=TRUE, compress=TRUE,
+                   truncLen = c(trimF,trimR), maxEE = c(2,5), truncQ = 2, maxN = 0, rm.phix=TRUE, compress=TRUE,
                    verbose=TRUE, multithread = T))
+# increase maxEE, as for some samples, this drops the read retention in track reads
 #     user    system   elapsed 
 #59498.305  1256.957 60722.193
 # around 16.8 hours

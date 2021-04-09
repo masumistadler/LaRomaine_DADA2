@@ -22,10 +22,10 @@ set.seed(3)
 # Start analysis -------------------------------------------------------------------------------------------
 # Merge multiple runs
 merger <- list()
-list.files("./Objects")
+list.files("./Objects/paper1_sub")
 # we have 27 categories of Plate_Year_Season
-for(i in 1:27){
-  merger[[i]] <- readRDS(paste0("./Objects/",i,"_seqtab.rds"))
+for(i in 1:15){
+  merger[[i]] <- readRDS(paste0("./Objects/paper1_sub/",i,"_seqtab.rds"))
 }
 
 #seqtab <- readRDS("./Objects/25_seqtab.rds")
@@ -34,22 +34,31 @@ lapply(merger, row.names) # yes, 22
 
 # check sample name
 splitdf <- readRDS( "./Objects/splitdf_new.rds")
-dlply(splitdf, .(splitID), function(x){
-  data.frame(row.names = x$final_name)
-})
-# 6_Summer_DNA
-splitdf[splitdf$splitID == "6_Summer_DNA",]$final_name
-row.names(merger[[22]]) <- splitdf[splitdf$splitID == "6_Summer_DNA",]$final_name
+
+# dlply(splitdf, .(splitID), function(x){
+#   data.frame(row.names = x$final_name)
+# })
+# # 6_Summer_DNA
+# splitdf[splitdf$splitID == "6_Summer_DNA",]$final_name
+# row.names(merger[[22]]) <- splitdf[splitdf$splitID == "6_Summer_DNA",]$final_name
+# 
+# t <- splitdf %>% filter(seq_depth == "Shallow" & year < 2018)
+# levels(factor(splitdf$splitID)) %in% levels(factor(t$splitID))
+
+
 
 # merge all into one
+# st.all <- mergeSequenceTables(merger[[1]],merger[[2]],merger[[3]],merger[[4]],merger[[5]],
+#                               merger[[6]],merger[[7]],merger[[8]],merger[[9]],merger[[10]],
+#                               merger[[11]],merger[[12]],merger[[13]],merger[[14]],merger[[15]],
+#                               merger[[16]],merger[[17]],merger[[18]],merger[[19]],merger[[20]],
+#                               merger[[21]],merger[[22]],merger[[23]],merger[[24]], merger[[25]],
+#                               merger[[26]], merger[[27]])
+#,merger[[22]]) 19?
 st.all <- mergeSequenceTables(merger[[1]],merger[[2]],merger[[3]],merger[[4]],merger[[5]],
                               merger[[6]],merger[[7]],merger[[8]],merger[[9]],merger[[10]],
-                              merger[[11]],merger[[12]],merger[[13]],merger[[14]],merger[[15]],
-                              merger[[16]],merger[[17]],merger[[18]],merger[[19]],merger[[20]],
-                              merger[[21]],merger[[22]],merger[[23]],merger[[24]], merger[[25]],
-                              merger[[26]], merger[[27]])
-#,merger[[22]]) 19?
-saveRDS(st.all, "./Objects/all_seqtab_2015-2018.rds")
+                              merger[[11]],merger[[12]],merger[[13]],merger[[14]],merger[[15]])
+saveRDS(st.all, "./Objects/all_seqtab_paper1.rds")
 
 dim(st.all) # 886 samples, 248785 ASVs
 table(nchar(getSequences(st.all)))
@@ -57,12 +66,12 @@ table(nchar(getSequences(st.all)))
 # Sequences that are much longer or shorter than expected may be the result of non-specific priming
 
 # remove non-target-length sequences from sequence table
-tar.seqtab <- st.all[,nchar(colnames(st.all)) %in% 250:258]
+tar.seqtab <- st.all[,nchar(colnames(st.all)) %in% 250:258] # keep only reads that are 250 to 258 bp long
 dim(tar.seqtab) # 240200 ASVs
 table(nchar(getSequences(tar.seqtab)))
 
-saveRDS(tar.seqtab, "./Objects/target_seqtab_2015-2018.rds")
-
+saveRDS(tar.seqtab, "./Objects/target_seqtab_paper1.rds")
+tar.seqtab <- readRDS("./Objects/target_seqtab_paper1.rds")
 # collapse ASVs with identical sequence
 #col.st <- collapseNoMismatch(st.all, minOverlap = 20, verbose = T)
 #col.st <- collapseNoMismatch(seqtab, minOverlap = 20, verbose = T)
@@ -72,11 +81,11 @@ saveRDS(tar.seqtab, "./Objects/target_seqtab_2015-2018.rds")
 # remove Chimeras
 #col.st <- readRDS("./Objects/collapsed_seqtab_2018.rds")
 seqtab.nochim <- removeBimeraDenovo(tar.seqtab, method="consensus", multithread=TRUE, verbose = T)
-saveRDS(seqtab.nochim, "./Objects/nochim_seqtab_2015-2018.rds")
-seqtab.nochim <- readRDS('./DADA2/Objects/nochim_seqtab_2018.rds')
+saveRDS(seqtab.nochim, "./Objects/nochim_seqtab_paper1.rds")
+#seqtab.nochim <- readRDS('./Objects/nochim_seqtab_2015-2018.rds')
 
 dim(seqtab.nochim) # 124759 ASVs retained
-sum(seqtab.nochim)/sum(tar.seqtab) # chimeras account for 9% of sequence reads - which is fine
+sum(seqtab.nochim)/sum(tar.seqtab) # chimeras account for 4% of sequence reads - which is fine
 
 # assign taxonomy
 #tax <- assignTaxonomy(seqtab.nochim, "./DADA2/DB/silva_nr_v138_train_set.fa.gz", multithread = TRUE)
@@ -96,7 +105,7 @@ taxid <- t(sapply(ids, function(x) {
 }))
 colnames(taxid) <- ranks; rownames(taxid) <- getSequences(seqtab.nochim)
 #saveRDS(tax, "./Objects/taxtabspecies_silva_v138_2018.rds")
-saveRDS(taxid, "./Objects/taxtab_gtdb_r95_2018.rds")
+saveRDS(taxid, "./Objects/taxtab_paper1_gtdb_r95_2018.rds")
 
 dim(seqtab.nochim)
 dim(taxid); colnames(taxid)
