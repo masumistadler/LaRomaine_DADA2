@@ -25,13 +25,20 @@ cl <- makeCluster(numCores, type = "FORK") # using forking
 set.seed(3)
 
 #Some pre-processing. Read-in `splitdf.rds` created in `4_quality_filtering.Rmd` for pooling.
-splitdf <- readRDS( "./Objects/splitdf_new.rds")
-
+# splitdf <- readRDS( "./Objects/splitdf_new.rds")
+# splitdf$splitNO <- factor(splitdf$splitID, labels = 1:length(levels(factor(splitdf$splitID))))
+# splitdf$splitNO <- as.numeric(splitdf$splitNO)
+# saveRDS(splitdf, "./Objects/splitdf_withNO.rds")
+splitdf <- readRDS("./Objects/splitdf_withNO.rds")
 # let's only do shallow and 2015-2017
-splitdf <- splitdf %>% dplyr::filter(year < 2018 & seq_depth == "Shallow")
+sub <- splitdf %>% dplyr::filter(seq_depth == "Shallow" & year != 2018)
 
-t <- dlply(splitdf, .(splitID), distinct)
-sel <- names(t)[1:4]
+#deep <- splitdf %>% dplyr::filter(seq_depth == "Deep")
+#yr2018 <- splitdf %>% dplyr::filter(year == 2018)
+#sub <- rbind(deep,yr2018)
+
+t <- dlply(sub, .(splitID), distinct)
+sel <- names(t)
 
 splitdf<-splitdf[splitdf$splitID %in% sel,]
 
@@ -41,16 +48,16 @@ sample.names <- sapply(sapply(baseFs, strsplit, split = "_"), "[[", 1)
 
 # split samples into list bins to pool them by splitID
 #Fs <- daply(splitdf[,c("num.splitID","filtpathFs")], .(num.splitID), .fun = list)
-Fs <- daply(splitdf[,c("splitID","filtpathFs")], .(splitID), .fun = list)
+Fs <- daply(splitdf[,c("splitNO","filtpathFs")], .(splitNO), .fun = list)
 Fs <- sapply(Fs, "[[", 2, simplify = F) # extract as vectors
 
 #Rs <- daply(splitdf[,c("num.splitID","filtpathRs")], .(num.splitID), .fun = list)
-Rs <- daply(splitdf[,c("splitID","filtpathRs")], .(splitID), .fun = list)
+Rs <- daply(splitdf[,c("splitNO","filtpathRs")], .(splitNO), .fun = list)
 Rs <- sapply(Rs, "[[", 2, simplify = F)
-
+length(Fs)
 
 # Run loop by bins
-for(i in 1:length(Fs)){
+for(i in names(Fs)){
   
   sample.names <- sapply(strsplit(basename(Fs[[i]]),"_"),`[`,1)
   sample.namesR <- sapply(strsplit(basename(Rs[[i]]),"_"),`[`,1)

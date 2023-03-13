@@ -30,7 +30,27 @@ Files are being uploaded as manuscripts are published.
 Currently available files:
 
 - 2015-2017: 16S rRNA gene and transcripts (DNA and cDNA) in spring, summer, autumn (shallow sequencing)
-   - Part of the manuscript: xxxx (in prep)
+   - Part of the manuscript: Stadler M, del Giorgio PA. Terrestrial connectivity , upstream aquatic history and seasonality shape bacterial community assembly within a large boreal aquatic network. ISME J 2022; 16: 937–947. 
+   - All files part of this paper are named with: '_paper1_'
+
+---
+
+Final scripts used:
+
+- Scripts/0_clean_unify_files.R
+- Scripts/1_remove_primers_cutadapt.R
+- Scripts/2_quality_filtering.R OR 2_quality_filt_slurm.R
+- Scripts/3_learnError_dada.R OR 3_learnError_dada_slurm.R
+- Scripts/4_chimrm_assigntax.R
+- Scripts/5_clusterOTU_slurm.R
+- Scripts/6_prepare_for_SRA.R
+
+Final data files of all La Romaine data run together:
+
+- Cleaned sequences, assigned ASVs (run through DADA2): Objects/nochim_seqtab_2015-2018.rds
+- Assigned taxonomy using GTDB database v.95: Objects/taxtav_gtdb_r95_2015-18.rds
+- Distance matrix calculated as part of 99% OTU clustering: Objects/distmat_decipher_2015-18.rds
+- Sequences aligned for 99% OTU clustering: Objects/aln_decipher_2015-18.rds
 
 ---
 

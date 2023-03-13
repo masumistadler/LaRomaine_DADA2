@@ -38,9 +38,14 @@ sample.names <- sapply(sapply(baseFs, strsplit, split = "_"), "[[", 1)
 # Sanity check
 any(duplicated(sample.names))
 
+splitdf<-readRDS("~/projects/def-pauldel/mstadler/DADA2/Objects/splitdf_new.rds")
 #splitdf<-readRDS("~/projects/def-pauldel/mstadler/DADA2/Objects/redo_filt_splitdf.rds")
 #splitdf <- readRDS("./Objects/missing_split.rds")
-splitdf<-readRDS("./Objects/splitdf_new.rds")
+#splitdf<-readRDS("./Objects/splitdf_new.rds")
+
+deep <- splitdf %>% dplyr::filter(seq_depth == "Deep")
+df18 <- splitdf %>% dplyr::filter(year == 2018)
+splitdf <- rbind(deep, df18)
 
 # create new folders to store data
 dir.create(filtpathF)

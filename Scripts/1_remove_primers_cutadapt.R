@@ -10,7 +10,7 @@ library("Biostrings"); packageVersion("Biostrings")
 # Remove primers #
 ##################
 
-path <- "./Renamed_2015-2018"  ## CHANGE ME to the directory containing the fastq files.
+path <- "./Renamed_2015-2018/new"  ## CHANGE ME to the directory containing the fastq files.
 
 # Multi directory
 #path <- list("/home/bioinf/data/Bioinf.LaRomaine/Raw/2015",

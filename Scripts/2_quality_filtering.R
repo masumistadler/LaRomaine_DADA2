@@ -45,7 +45,7 @@ sort.files <- function(x, pattern){
   sort(list.files(x, pattern = pattern, full.names = TRUE))
 }
 
-fnFs <- lapply(pathF, sort.files, pattern = "_R1.fastq")
+fnFs <- lapply(c(pathF,"./Renamed_2015-2018/new/cutadapt/forward"), sort.files, pattern = "_R1.fastq")
 baseFs <- unlist(sapply(fnFs, basename))
 sample.names <- sapply(sapply(baseFs, strsplit, split = "_"), "[[", 1)
 # Sanity check
@@ -75,7 +75,7 @@ splitdf$filtpathRs <- file.path(pathR, "filtered", paste0(splitdf$final_name, "_
 
 # add a split ID to run DADA2
 # Read in meta data
-meta <- read.csv("./Meta/main_bac_match_2021-02-22.csv", sep = ",", stringsAsFactors = F)
+meta <- read.csv("./Meta/main_bac_match_2021-05-11.csv", sep = ",", stringsAsFactors = F)
 # select only necessary columns
 meta <- meta %>% select(dna.match, sample.type.year, year, Season, sampling.date, lat, long)
 
@@ -96,7 +96,7 @@ splitdf[, i.year := NULL] # remove
 export <- splitdf %>% select(seq_name =  final_name,
                              dr_match_name, replicate, dna_type, seq_depth, plate.id,
                              year, season = Season, sampling.date, lat, long, sample.type.year)
-write.table(export, "./Meta/sequence_metadata.csv", sep = ",", dec = ".", row.names = F)
+write.table(export, "./Meta/sequence_metadata_2015-2018.csv", sep = ",", dec = ".", row.names = F)
 
 # by plate, season and dna_type, except Deep sequences they run by plate
 splitdf[seq_depth == "Deep", splitID := as.character(plate.id)]
@@ -106,7 +106,8 @@ splitdf[seq_depth == "Shallow", splitID := paste(plate.id, Season, dna_type, sep
 pickRandomRows <- function(df, numberOfRows = 1){
   df %>% slice(runif(numberOfRows, 0,  length(df[,1])))
 }
-
+temp <- splitdf
+splitdf <- temp
 # It seems that those samples with two genome quebec replicates had a low quality, and thus were run a second time
 # In those cases, the second replicate is always of better quality
 dupl <- splitdf[splitdf$dr_match_name %in% splitdf[grep("s2",splitdf$final_name),]$dr_match_name,]
@@ -125,6 +126,8 @@ splitdf[, n := .N, by = .(splitID)]
 splitdf %>% dplyr::select(splitID, n) %>% distinct()
 # there is one ID with n = 1, merge with other category of same plate
 splitdf[splitID == "6_Summer_DNA", splitID := "6_Spring_DNA"]
+splitdf[splitID == "14_Autumn_DNA", splitID := "14_Summer_DNA"]
+splitdf[splitID == "15_Spring_NA", splitID := "15_Spring_DNA"]
 
 
 # pick a random sample for each splitID
@@ -132,10 +135,12 @@ qualcheck <- splitdf %>% group_by(splitID) %>%
   dplyr::slice(c(1)) %>%
   select(pathFs, pathRs, splitID)
 
-bad<-splitdf[final_name %in% t,]
+qualcheck <- qualcheck[13:23,]
+
+qualcheck <- splitdf[plate.id == 14,]
 
 # qualityPlot
-qc <- plyr::alply(bad[,c("pathFs","pathRs")], .margins = 1, .fun = plotQualityProfile,
+qc <- plyr::alply(qualcheck[,c("pathFs","pathRs")], .margins = 1, .fun = plotQualityProfile,
                   .parallel = TRUE)
 names(qc) <- qualcheck$splitID
 
@@ -146,9 +151,16 @@ names(qc) == sort(unique(splitdf$splitID))
 qc[[17]] ; names(qc)[17]
 # plate 2, s2 seems better than s1
 
+old.split <- splitdf[plate.id < 14,]
+old.split[, splitNO := as.numeric(factor(splitID))]
+
+new.split <- splitdf[plate.id >= 14,]
+new.split[, splitNO := as.numeric(factor(splitID)) + max(old.split$splitNO)]
+new.split[, c("TrimF","TrimR") := list(225,225)]
+
 # Prepare for filtering
 # add Trimming information, decided based on quality plots c(FWD, REV)
-trim <- data.frame(splitID = sort(unique(splitdf$splitID)),
+trim <- data.frame(splitID = sort(unique(old.split$splitID)),
                    TrimF = c(225,150,225,150,225,
                              225,225,225,225,225,
                              225,225,150,160,160,
@@ -175,9 +187,11 @@ trim <- data.frame(splitID = sort(unique(splitdf$splitID)),
 #                             225,225,225,225,225,
 #                             225,225,225,225,
 #                             180, 180), stringsAsFactors = F)
-splitdf <- left_join(splitdf, trim, by = "splitID")
-saveRDS(splitdf, "./Objects/splitdf_new.rds")
-splitdf <-readRDS("./Objects/splitdf_new.rds")
+old.split <- left_join(old.split, trim, by = "splitID")
+splitdf <- bind_rows(old.split, new.split)
+
+saveRDS(splitdf, "./Objects/splitdf_final.rds")
+splitdf <-readRDS("./Objects/splitdf_final.rds")
 # create new folders to store data
 dir.create(filtpathF)
 dir.create(filtpathR)
@@ -210,3 +224,4 @@ system.time(mapply(filterAndTrim, fwd = pathFs, filt = filtpathFs, rev = pathRs,
 #59498.305  1256.957 60722.193
 # around 16.8 hours
 
+orig<-read.csv("./Meta/LaRomaine_molecular_naming_unified.csv", sep = ",", stringsAsFactors = F)

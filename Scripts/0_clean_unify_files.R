@@ -25,6 +25,13 @@ for(i in 1:length(folders)){
     unit <- file.names <- paste(sapply(first.split[which(ele.no >= 5)],"[[",2),
                                 sapply(first.split[which(ele.no >= 5)],"[[",4), sep = "_")
     file.names <- sapply(strsplit(sapply(first.split[which(ele.no >= 5)],"[[",5), split = "_"), "[[", 1)
+    if(i == 7 & any(grep("Hy", sapply(strsplit(sapply(first.split[which(ele.no >= 5)],"[[",5), split = "_"), "[[", 2)))){
+      w.hy <- grep("Hy", sapply(strsplit(sapply(first.split[which(ele.no >= 5)],"[[",5), split = "_"), "[[", 2))
+      file.names[w.hy] <- paste(file.names[w.hy],
+                                sapply(strsplit(sapply(first.split[which(ele.no >= 5)],"[[",5), split = "_"), "[[", 2)[w.hy],
+                                sep = "_")
+    }
+    
     # extract some metadata
     submission <- sapply(strsplit(folders[i], "_"), "[[", 3)
     year <- sapply(strsplit(folders[i], "_"), "[[", 2)
@@ -42,6 +49,7 @@ df[, merge.id := paste(sample_name, year, submission, sep = "_")]
 plate <- read.csv("./Meta/laromaine_nanuq.csv", sep = ",")
 setDT(plate)
 plate[,sample_name := str_replace(sample_name, "[.]", "-")]
+plate[year == 2018,sample_name := str_replace(sample_name, "_replacement", "")]
 #df[!(df$sample_name %in% plate$sample_name),]
 plate[, merge.id := paste(sample_name, year, submission, sep = "_")]
 df[plate, plate.id := i.plate, on = .(merge.id)]
@@ -116,11 +124,23 @@ df[!is.na(ID.2015), final_name := ID.2015]
 
 # correct hypolimnion samples
 # first, add splitter to samples with only "Hy"
-df[,final_name := str_replace(final_name, "Hy", ".Hypo.")]
+other <- df[plate.id <= 13,]
+other[,final_name := str_replace(final_name, "Hy", ".Hypo.")]
 # extract samples with "_" separator
-hypos <- sapply(strsplit(df$files, "_"), length)
-ext <- sapply(strsplit(df$files, "_")[hypos > 3], "[[", 3)
-df[hypos > 3,final_name := paste0(final_name,".", ext, ".")]
+hypos <- sapply(strsplit(other$files, "_"), length)
+ext <- sapply(strsplit(other$files, "_")[hypos > 3], "[[", 3)
+other[hypos > 3,final_name := paste0(final_name,".", ext, ".")]
+
+sub18 <- df[plate.id >=14,]
+sub18[,final_name := str_replace(final_name, "_Hy", ".Hypo.")]
+
+# in 2018 we have "true replicates" that were sent to sequencing twice.
+# remove the "-2" identifier for duplicate as it will be added later
+sub18[,final_name := str_replace(final_name, "-2", "")]
+
+df <- rbind(other, sub18)
+
+
 
 # add replicate column
 df[, replicate := 1:nrow(.SD), by = .(final_name, seq_depth, pairend, dna_type)]
@@ -142,10 +162,11 @@ df[, final_name := str_remove(final_name, "D$")]
 df[, final_name := str_remove(final_name, "R$")]
 
 # add replicate ID
+df[replicate == 2 & year == 2018, final_name :=paste0(final_name, "-t2-")]
 # "s" for sequencing replicate, vs "t" for true replicate
 # some replicates are not "true, meaning that we did not send replicates to be sequenced
 # genome quebec gave us more files back for the same sample = "s"
-df[replicate == 2 & dna_type != "cDNA", final_name :=paste0(final_name, "-s2-")]
+df[replicate == 2 & dna_type != "cDNA" & year != 2018, final_name :=paste0(final_name, "-s2-")]
 
 # add deep Sequence identifier
 df[seq_depth == "Deep", final_name := str_remove(final_name, "d$")]
@@ -201,6 +222,9 @@ df[, dr_match_name := str_remove(dr_match_name, "DSeq")]
 df[pairend == "FWD", ext := "_R1.fastq.gz"]
 df[pairend == "RVS", ext := "_R2.fastq.gz"]
 
+# only 2018 submission 2
+#df <- df[year == 2018 & submission == 2,]
+
 # make folder to store
 dir.create("./Renamed_2015-2018/")
 raw.files <- paste(df$folder.path, df$files, sep = "/")
@@ -213,7 +237,7 @@ head(data.frame(raw.files, copy.as))
 tail(data.frame(raw.files, copy.as))
 
 # lets copy and rename
-file.copy(raw.files, copy.as)
+#file.copy(raw.files, copy.as)
 
 # Check if all files were copied.
 nrow(df)
@@ -224,6 +248,9 @@ length(new.files) == nrow(df) # yes
 # select necessary columns
 df[,dr_match_name := str_replace(dr_match_name, ".Hypo.", ".Hypo")]
 df[,dr_match_name := str_replace(dr_match_name, "m.", "m")]
+
+# PCR blanks have NA in dr_match_name
+df[is.na(dr_match_name), dr_match_name := "pcrblank18"]
 
 out <- df %>%
   select(folder.path, file.path = files,
@@ -296,11 +323,16 @@ sub.main[dna.match == "Snow47", c("sample.type.year","sample.type") := list("Sno
 
 # there are no entries for S33, S34, S35, S36, S37, S39, S40, S42
 # take campaign and year from SW with same number
-extra.soil <- sub.main[dna.match %in% c("SW33", "SW34", "SW35", "SW36", "SW37", "SW39", "SW40", "SW42"),] %>%
+# 44,45,46,47,48,49,50,51,52,53,54,5556,57,58,59
+extra.soil <- sub.main[dna.match %in% c("SW33", "SW34", "SW35", "SW36", "SW37", "SW39", "SW40", "SW42",
+                                        "SW44","SW45","SW46","ST47","ST48","SW49","ST50",
+                                        "ST51","ST52","SW53","SW54","SW55","ST57","HW58","HW59"),] %>%
   select(sample.name, year, campaign,julian.day, sampling.date, lat, long, distance.from.mouth, catchment.area)
 setDT(extra.soil)
 extra.soil[, c("sample.type","sample.type.year") := list("Soil","Soil")]
-extra.soil[, dna.match := c("S33", "S34", "S35", "S36", "S37", "S39", "S40", "S42")]
+extra.soil[, dna.match := c("S33", "S34", "S35", "S36", "S37", "S39", "S40", "S42",
+                            "S47","S48","S44","S45","S46","S50","S51",
+                            "S52","S49","S53","S58","S59","S57","S54","S5556")]
 # merge with main data
 
 all <- bind_rows(sub.main, extra.soil)
@@ -345,10 +377,10 @@ colnames(bio)[1] <- "dna.match"
 all <- bind_rows(all, bio)
 
 # Some miscallaneaous samples
-misc <- data.frame(dna.match = c("THW1","LR17blankc2","Blank"),
-                   campaign = c(1,2,1),
-                   year = c(2016, 2017, 2016),
-                   sample.type.year = c("Unknown","Blank","Blank"))
+misc <- data.frame(dna.match = c("THW1","LR17blankc2","Blank","pcrblank18","Blank19"),
+                   campaign = c(1,2,1,1,1),
+                   year = c(2016, 2017, 2016,2018,2018),
+                   sample.type.year = c("Unknown","Blank","Blank","Blank","Blank"))
 
 all <- bind_rows(all, misc)
 
@@ -364,4 +396,4 @@ all[campaign == 2, Season := "Summer"]
 all[campaign == 3, Season := "Autumn"]
 
 # export
-write.table(all, "./Meta/main_bac_match_2021-02-22.csv", sep = ",", row.names = F)
+write.table(all, "./Meta/main_bac_match_2021-05-11.csv", sep = ",", row.names = F)
